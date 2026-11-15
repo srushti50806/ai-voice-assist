@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Code Debugger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            light: '#667eea',
+                            DEFAULT: '#5a67d8',
+                            dark: '#4c51bf',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-primary-light to-purple-500 min-h-screen">
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <header class="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-lg mb-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <div class="text-3xl font-bold bg-gradient-to-r from-primary-light to-purple-500 bg-clip-text text-transparent">
+                        AI Voice Code Debugger
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <select id="languageSelect" class="px-4 py-2 border-2 border-gray-200 rounded-lg bg-white">
+                        <option value="python">Python</option>
+                        <option value="javascript">JavaScript</option>
+                        <option value="c">C</option>
+                        <option value="cpp">C++</option>
+                        <option value="java">Java</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-3 gap-4">
+            <!-- Code Editor Section -->
+            <div class="col-span-2">
+                <div class="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-lg">
+                    <div class="mb-4">
+                        <div id="editor" class="border rounded-lg overflow-hidden"></div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="runCode()" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                            Run Code
+                        </button>
+                        <button onclick="debugCode()" class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors">
+                            Debug
+                        </button>
+                        <button onclick="stepCode()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            Step
+                        </button>
+                    </div>
+                    <div class="mt-4 p-4 bg-gray-900 text-gray-100 rounded-lg h-48 overflow-auto" id="output">
+                        Ready to execute code...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice & Debug Panel -->
+            <div class="space-y-4">
+                <!-- Voice Control Panel -->
+                <div class="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4">Voice Control</h2>
+                    <div class="flex flex-col items-center">
+                        <button onclick="toggleVoice()" id="voiceButton" class="w-20 h-20 rounded-full bg-gradient-to-r from-primary-light to-purple-500 text-white flex items-center justify-center mb-4 hover:scale-105 transition-transform">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                        </button>
+                        <div id="voiceStatus" class="text-gray-600 mb-4">Click to start listening</div>
+                        <div class="w-full bg-gray-50 rounded-lg p-4">
+                            <h3 class="font-semibold mb-2">Transcript</h3>
+                            <div id="transcript" class="text-gray-600 min-h-[100px] max-h-[200px] overflow-auto">
+                                Voice commands will appear here...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debug Info Panel -->
+                <div class="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4">Debug Info</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-semibold mb-2">Variables</h3>
+                            <div id="variables" class="space-y-2"></div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">AI Analysis</h3>
+                            <div id="aiResponse" class="p-3 bg-gray-50 rounded-lg text-gray-600">
+                                AI insights will appear here...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Controls -->
+                <div class="bg-white/95 backdrop-blur-lg rounded-xl p-4 shadow-lg">
+                    <h2 class="text-xl font-semibold mb-4">Training Controls</h2>
+                    <div class="space-y-2">
+                        <button id="save-transcript-btn" class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                            Save Transcript
+                        </button>
+                        <button id="train-ai-btn" class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            Train AI Model
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/main.js"></script>
+</body>
+</html>

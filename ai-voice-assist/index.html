@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Debugger & Explainer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+    <style>
+        body {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100%;
+            color: #333;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .lang-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: transparent;
+            color: #667eea;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .lang-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .code-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            height: 100%;
+        }
+
+        .editor-container {
+            flex: 1;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .CodeMirror {
+            height: 100%;
+            font-size: 14px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .run-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+
+        .debug-btn {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            color: white;
+        }
+
+        .step-btn {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+
+        .control-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .output-section {
+            background: #1e1e1e;
+            color: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            min-height: 120px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .voice-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .voice-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            font-size: 48px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .voice-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+        }
+
+        .voice-button.listening {
+            animation: pulse 1.5s infinite;
+            background: linear-gradient(45deg, #ff4757, #ff3838);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .voice-status {
+            font-size: 16px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .transcript-box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            min-height: 100px;
+            max-height: 200px;
+            overflow-y: auto;
+            text-align: left;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .debug-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            flex: 1;
+        }
+
+        .debug-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .variables-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .variable-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e9ecef;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .variable-name {
+            font-weight: 600;
+            color: #2196F3;
+        }
+
+        .variable-value {
+            color: #4CAF50;
+        }
+
+        .ai-response {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .error-highlight {
+            background-color: rgba(255, 107, 107, 0.2);
+            border-left: 4px solid #ff6b6b;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+            }
+            
+            .sidebar {
+                flex-direction: row;
+                gap: 15px;
+            }
+            
+            .voice-panel, .debug-panel {
+                flex: 1;
+            }
+            
+            .voice-button {
+                width: 80px;
+                height: 80px;
+                font-size: 32px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">🤖</div>
+                <div class="title">AI Code Debugger & Explainer</div>
+            </div>
+            <div class="language-selector">
+                <button class="lang-btn active" data-lang="python">Python</button>
+                <button class="lang-btn" data-lang="javascript">JavaScript</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="code-section">
+                <div class="editor-container">
+                    <textarea id="code-editor"># Welcome to AI Code Debugger!
+# Try this sample code or write your own
+
+def calculate_factorial(n):
+    if n < 0:
+        return "Error: Negative number"
+    elif n == 0:
+        return 1
+    else:
+        result = 1
+        for i in range(1, n + 1):
+            result *= i
+        return result
+
+# Test the function
+number = 5
+factorial = calculate_factorial(number)
+print(f"Factorial of {number} is {factorial}")
+</textarea>
+                </div>
+                
+                <div class="controls">
+                    <button class="control-btn run-btn" onclick="runCode()">
+                        ▶ Run Code
+                    </button>
+                    <button class="control-btn debug-btn" onclick="startDebug()">
+                        🐛 Debug
+                    </button>
+                    <button class="control-btn step-btn" onclick="stepDebug()">
+                        👣 Step
+                    </button>
+                </div>
+                
+                <div class="output-section" id="output">
+                    <div style="color: #4CAF50;">Ready to execute code...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="voice-panel">
+                <div class="voice-status" id="voice-status">Voice Assistant Ready</div>
+                <button class="voice-button" id="voice-btn" onclick="toggleVoice()">
+                    🎤
+                </button>
+                <div style="margin-top:12px; display:flex; gap:8px; justify-content:center;">
+                    <button id="save-transcript-btn" class="lang-btn" style="padding:8px 12px;">Save Transcript</button>
+                    <button id="train-ai-btn" class="lang-btn" style="padding:8px 12px;">Train AI</button>
+                </div>
+                <div class="transcript-box" id="transcript">
+                    <div style="color: #6c757d; font-style: italic;">Voice transcript will appear here...</div>
+                </div>
+            </div>
+
+            <div class="debug-panel">
+                <div class="debug-title">
+                    🔍 Debug Information
+                </div>
+                <div class="variables-list" id="variables">
+                    <div style="color: #6c757d; font-style: italic; text-align: center;">
+                        Variables will appear during debugging
+                    </div>
+                </div>
+                <div class="ai-response" id="ai-response">
+                    👋 Hi! I'm your AI debugging assistant. Run or debug your code, or use voice commands to get help!
+                </div>
+                <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                    <input id="predict-input" type="text" placeholder="Text to predict" style="flex:1; padding:8px; border-radius:6px; border:1px solid #e9ecef;" />
+                    <button id="predict-btn" class="lang-btn" style="padding:8px 12px;">Predict</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize CodeMirror
+        let editor = CodeMirror.fromTextArea(document.getElementById('code-editor'), {
+            mode: 'python',
+            theme: 'monokai',
+            lineNumbers: true,
+            indentUnit: 4,
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true
+        });
+
+        // Global variables
+        let isListening = false;
+        let recognition = null;
+        let currentLanguage = 'python';
+        let debugMode = false;
+        let currentLine = 0;
+        let variables = {};
+
+        // Sample code templates
+        const codeTemplates = {
+            python: `# Welcome to AI Code Debugger!
+# Try this sample code or write your own
+
+def calculate_factorial(n):
+    if n < 0:
+        return "Error: Negative number"
+    elif n == 0:
+        return 1
+    else:
+        result = 1
+        for i in range(1, n + 1):
+            result *= i
+        return result
+
+# Test the function
+number = 5
+factorial = calculate_factorial(number)
+print(f"Factorial of {number} is {factorial}")`,
+            javascript: `// Welcome to AI Code Debugger!
+// Try this sample code or write your own
+
+function calculateFactorial(n) {
+    if (n < 0) {
+        return "Error: Negative number";
+    } else if (n === 0) {
+        return 1;
+    } else {
+        let result = 1;
+        for (let i = 1; i <= n; i++) {
+            result *= i;
+        }
+        return result;
+    }
+}
+
+// Test the function
+const number = 5;
+const factorial = calculateFactorial(number);
+console.log(\Factorial of \${number} is \${factorial}\);`
+        };
+
+        // Initialize Speech Recognition
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = function() {
+                    document.getElementById('voice-status').textContent = 'Listening...';
+                    document.getElementById('voice-btn').classList.add('listening');
+                };
+
+                recognition.onresult = function(event) {
+                    let transcript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            transcript += event.results[i][0].transcript;
+                        }
+                    }
+                    
+                    if (transcript) {
+                        document.getElementById('transcript').innerHTML = `<strong>You said:</strong> "${transcript}"`;
+                        processVoiceCommand(transcript);
+                    }
+                };
+
+                recognition.onerror = function(event) {
+                    document.getElementById('voice-status').textContent = 'Voice Assistant Ready';
+                    document.getElementById('voice-btn').classList.remove('listening');
+                    isListening = false;
+                };
+
+                recognition.onend = function() {
+                    document.getElementById('voice-status').textContent = 'Voice Assistant Ready';
+                    document.getElementById('voice-btn').classList.remove('listening');
+                    isListening = false;
+                };
+            }
+        }
+
+        // Toggle voice recognition
+        function toggleVoice() {
+            if (!recognition) {
+                initSpeechRecognition();
+            }
+
+            if (isListening) {
+                recognition.stop();
+                isListening = false;
+            } else {
+                recognition.start();
+                isListening = true;
+            }
+        }
+
+        // Process voice commands
+        function processVoiceCommand(command) {
+            const lowerCommand = command.toLowerCase();
+            let response = '';
+
+            if (lowerCommand.includes('run code') || lowerCommand.includes('execute')) {
+                runCode();
+                response = 'Running your code now!';
+            } else if (lowerCommand.includes('debug') || lowerCommand.includes('start debugging')) {
+                startDebug();
+                response = 'Starting debug mode. I\'ll help you step through your code.';
+            } else if (lowerCommand.includes('step') || lowerCommand.includes('next line')) {
+                stepDebug();
+                response = 'Stepping to the next line of code.';
+            } else if (lowerCommand.includes('explain') || lowerCommand.includes('what does this do')) {
+                explainCode();
+                response = 'Let me explain what this code does...';
+            } else if (lowerCommand.includes('fix error') || lowerCommand.includes('help with error')) {
+                response = 'I can see you need help with an error. Let me analyze your code and suggest fixes.';
+            } else {
+                response = `I heard: "${command}". Try saying "run code", "debug", "step", or "explain code" for assistance.`;
+            }
+
+            updateAIResponse(response);
+            speakResponse(response);
+            // Also send transcript to server automatically so user can build dataset
+            sendTranscriptToServer(command);
+        }
+
+        // Text-to-speech
+        function speakResponse(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.8;
+                utterance.pitch = 1;
+                utterance.volume = 0.8;
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Language switching
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentLanguage = this.dataset.lang;
+                
+                editor.setOption('mode', currentLanguage);
+                editor.setValue(codeTemplates[currentLanguage]);
+                
+                updateOutput(`Switched to ${currentLanguage.toUpperCase()} mode`);
+            });
+        });
+
+        // Run code function
+        function runCode() {
+            const code = editor.getValue();
+            debugMode = false;
+            
+            updateOutput('Executing code...\n');
+            
+            // Simulate code execution
+            setTimeout(() => {
+                if (currentLanguage === 'python') {
+                    simulatePythonExecution(code);
+                } else {
+                    simulateJavaScriptExecution(code);
+                }
+            }, 500);
+        }
+
+        // Start debug mode
+        function startDebug() {
+            debugMode = true;
+            currentLine = 0;
+            
+            updateOutput('🐛 Debug mode started. Click "Step" to go through line by line.\n');
+            updateAIResponse('Debug mode activated! I\'ll help you step through your code and explain what\'s happening at each line.');
+            
+            // Initialize variables display
+            variables = { 'n': 5, 'result': 'undefined', 'i': 'undefined' };
+            updateVariablesDisplay();
+        }
+
+        // Step through debug
+        function stepDebug() {
+            if (!debugMode) {
+                startDebug();
+                return;
+            }
+            
+            currentLine++;
+            const lines = editor.getValue().split('\n');
+            
+            if (currentLine < lines.length) {
+                const currentCodeLine = lines[currentLine];
+                updateOutput(`Step ${currentLine}: ${currentCodeLine}\n`, true);
+                
+                // Simulate variable changes
+                if (currentLine === 8) {
+                    variables.result = 1;
+                } else if (currentLine >= 9 && currentLine <= 11) {
+                    variables.i = currentLine - 8;
+                    variables.result = Math.pow(currentLine - 8, currentLine - 8);
+                }
+                
+                updateVariablesDisplay();
+                
+                // AI explanation
+                const explanation = getLineExplanation(currentCodeLine, currentLine);
+                updateAIResponse(explanation);
+                speakResponse(explanation);
+            } else {
+                updateOutput('Debug session completed!\n', true);
+                updateAIResponse('Great! We\'ve stepped through all the code. The function successfully calculated the factorial.');
+                debugMode = false;
+            }
+        }
+
+        // Get explanation for current line
+        function getLineExplanation(line, lineNum) {
+            const explanations = [
+                'Starting the function definition.',
+                'Checking if the input number is negative.',
+                'Returning an error message for negative numbers.',
+                'Checking if the number is zero.',
+                'Returning 1 for factorial of 0.',
+                'Starting the else block for positive numbers.',
+                'Initializing result variable to 1.',
+                'Starting the for loop to calculate factorial.',
+                'Multiplying result by the current loop variable.',
+                'Continuing the multiplication process.',
+                'Returning the final result.'
+            ];
+            
+            return explanations[lineNum] || `Executing line ${lineNum}: ${line.trim()}`;
+        }
+
+        // Simulate Python execution
+        function simulatePythonExecution(code) {
+            try {
+                if (code.includes('calculate_factorial')) {
+                    updateOutput('Factorial of 5 is 120\n', true);
+                    updateAIResponse('✅ Code executed successfully! The factorial function worked perfectly and calculated 5! = 120.');
+                } else {
+                    updateOutput('Code executed successfully!\n', true);
+                    updateAIResponse('✅ Your code ran without errors!');
+                }
+            } catch (error) {
+                updateOutput(`❌ Error: ${error.message}\n`, true);
+                updateAIResponse(`I found an error in your code: ${error.message}. Let me help you fix it!`);
+                speakResponse(`There's an error on your code: ${error.message}`);
+            }
+        }
+
+        // Simulate JavaScript execution
+        function simulateJavaScriptExecution(code) {
+            try {
+                if (code.includes('calculateFactorial')) {
+                    updateOutput('Factorial of 5 is 120\n', true);
+                    updateAIResponse('✅ JavaScript code executed successfully! The factorial function calculated 5! = 120.');
+                } else {
+                    updateOutput('Code executed successfully!\n', true);
+                    updateAIResponse('✅ Your JavaScript code ran without errors!');
+                }
+            } catch (error) {
+                updateOutput(`❌ Error: ${error.message}\n`, true);
+                updateAIResponse(`I found a JavaScript error: ${error.message}. Would you like me to help fix it?`);
+                speakResponse(`There's a JavaScript error: ${error.message}`);
+            }
+        }
+
+        // Explain code function
+        function explainCode() {
+            const code = editor.getValue();
+            let explanation = '';
+            
+            if (code.includes('factorial')) {
+                explanation = 'This code defines a factorial function. A factorial (n!) is the product of all positive integers from 1 to n. For example, 5! = 5 × 4 × 3 × 2 × 1 = 120. The function handles edge cases like negative numbers and zero.';
+            } else {
+                explanation = 'This code appears to be a custom function. Let me analyze the structure and logic for you.';
+            }
+            
+            updateAIResponse(explanation);
+            speakResponse(explanation);
+        }
+
+        // Update output display
+        function updateOutput(text, append = false) {
+            const output = document.getElementById('output');
+            if (append) {
+                output.innerHTML += text;
+            } else {
+                output.innerHTML = text;
+            }
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // Update AI response
+        function updateAIResponse(text) {
+            document.getElementById('ai-response').textContent = text;
+        }
+
+        // Update variables display
+        function updateVariablesDisplay() {
+            const variablesDiv = document.getElementById('variables');
+            let html = '';
+            
+            for (const [name, value] of Object.entries(variables)) {
+                html += `
+                    <div class="variable-item">
+                        <span class="variable-name">${name}</span>
+                        <span class="variable-value">${value}</span>
+                    </div>
+                `;
+            }
+            
+            variablesDiv.innerHTML = html || '<div style="color: #6c757d; font-style: italic; text-align: center;">No variables to display</div>';
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initSpeechRecognition();
+            updateOutput('Welcome to AI Code Debugger! 🚀\nClick Run to execute code, Debug to step through line by line, or use voice commands!');
+
+            // Hook up save & train buttons
+            document.getElementById('save-transcript-btn').addEventListener('click', () => {
+                const transcriptEl = document.getElementById('transcript');
+                const text = transcriptEl.textContent || transcriptEl.innerText || '';
+                // extract the quoted text if present
+                const m = text.match(/"(.+)"/);
+                const cleaned = (m && m[1]) ? m[1] : text;
+                sendTranscriptToServer(cleaned, true);
+            });
+
+            document.getElementById('train-ai-btn').addEventListener('click', async () => {
+                updateOutput('Triggering training on server...\n', true);
+                try {
+                    const res = await fetch('/api/train', { method: 'POST' });
+                    const txt = await res.text();
+                    updateOutput(txt + '\n', true);
+                    updateAIResponse('Training finished. You can now use Predict from the page.');
+                } catch (err) {
+                    updateOutput('Training failed: ' + err.message + '\n', true);
+                }
+            });
+        });
+
+        // Send transcript to server for dataset collection
+        async function sendTranscriptToServer(text, notify = false) {
+            if (!text || text.trim().length === 0) return;
+            try {
+                const res = await fetch('/api/save-transcript', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: text.trim() })
+                });
+                if (notify) {
+                    const data = await res.json();
+                    updateAIResponse(data.message || 'Transcript saved');
+                }
+            } catch (err) {
+                console.error('Failed to save transcript', err);
+            }
+        }
+
+        // Predict from the server
+        document.getElementById('predict-btn').addEventListener('click', async () => {
+            const txt = document.getElementById('predict-input').value || editor.getSelection() || editor.getValue().split('\n').slice(0,3).join(' ');
+            if (!txt || txt.trim().length === 0) return;
+            updateOutput('Requesting prediction...\n', true);
+            try {
+                const res = await fetch('/api/predict?text=' + encodeURIComponent(txt));
+                const json = await res.json();
+                updateOutput('Prediction: ' + JSON.stringify(json) + '\n', true);
+                updateAIResponse('Prediction: ' + (json.label !== undefined ? json.label : JSON.stringify(json)));
+            } catch (err) {
+                updateOutput('Prediction error: ' + err.message + '\n', true);
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98dd72dd12aa7f3a',t:'MTc2MDM0Mzk1MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
